@@ -1,0 +1,179 @@
+GERADOR DE GUIAS DE IMPOSTOS (GNRE – DIFAL / FCP / ICMS-ST)
+==========================================================
+
+O QUE O PROGRAMA FAZ
+--------------------
+1. Lê os XMLs de NF-e escolhidos. Você pode:
+   - selecionar arquivos avulsos ("Selecionar arquivos...", com Ctrl/Shift para vários);
+   - selecionar uma pasta inteira, com subpastas ("Pasta inteira (lote)...");
+   - ou combinar as duas opções.
+   Aceita nfeProc, NFe e eventos de cancelamento (procEventoNFe).
+2. Considera só as notas de SAÍDA emitidas pela sua empresa (CNPJs configurados).
+   Notas canceladas, denegadas ou não autorizadas não geram guia.
+3. Para cada nota, identifica os impostos destacados que precisam ser pagos por guia
+   à UF de destino, fora da nota:
+   - DIFAL (EC 87/2015, LC 190/2022): venda interestadual a consumidor final NÃO
+     contribuinte, grupo ICMSUFDest.                       Receita 100102
+   - FCP do DIFAL (Fundo de Combate à Pobreza).            Receita 100129
+   - ICMS-ST interestadual.                                 Receita 100099
+   - FCP-ST.                                                Receita 100129
+   - Se a empresa tem IE de substituto tributário na UF de destino (campo IEST),
+     o recolhimento passa a ser por APURAÇÃO MENSAL: receitas 100110, 100137 e
+     100048. O programa junta as notas do mês numa só guia por UF.
+   - Situações que não geram GNRE aparecem como INFORMATIVO, para conferência:
+       * ST interna: vai pela guia estadual própria.
+       * Vendas com benefício SUFRAMA (ZFM/ALC): confira PIN-e e ISUF.
+4. Confere erros nos XMLs:
+   - chave e CNPJ com dígito inválido;
+   - DIFAL não destacado quando deveria existir;
+   - DIFAL ou FCP calculado diferente do destacado;
+   - alíquota interestadual incoerente (4%, 7% ou 12%);
+   - nota sem protocolo, de homologação ou duplicada;
+   - ISUF ausente;
+   - nota cancelada.
+5. Verifica atrasos:
+   - Guia por operação: o vencimento é a data de saída da mercadoria.
+   - Guia por apuração: vencimento dia 9 (ST) ou 15 (DIFAL) do mês seguinte,
+     passado para o próximo dia útil.
+   - Se a guia já venceu, a data de pagamento é atualizada para a data escolhida
+     e multa e juros são estimados: 0,33% ao dia, até 20%, mais SELIC. A SELIC é
+     baixada do Banco Central.
+   - O valor oficial dos encargos é o que o Portal GNRE/SEFAZ calcula.
+6. Emite as guias:
+   0) SITE DO PORTAL GNRE (padrão). O programa abre o Microsoft Edge (ou o Chrome)
+      e faz sozinho o que você faria no site:
+      - gera o arquivo de lote e o envia em "Processar Lote";
+      - lê o número do recibo;
+      - consulta o recibo em "Consultar Lote" e espera o processamento;
+      - seleciona as guias aceitas, clica em "Emitir" e baixa o PDF oficial;
+      - salva na pasta escolhida um PDF por guia, mais o PDF completo do lote.
+      No primeiro uso, o portal manda um número de validação para o e-mail
+      informado. O programa abre uma caixa pedindo esse número.
+      O site usa reCAPTCHA. Se aparecer um desafio ("selecione as imagens..."),
+      resolva-o na janela do navegador e o programa continua sozinho. O programa
+      não resolve o reCAPTCHA por você.
+      Não precisa de certificado digital.
+   a) WEBSERVICE GNRE, com certificado digital A1 (.pfx):
+      - consulta as regras de cada UF (GnreConfigUF): campos extras, tipo de
+        documento, FCP junto do DIFAL;
+      - envia o lote, consulta o resultado e grava a guia com código de barras e
+        linha digitável.
+      - Se o portal ainda estiver processando, a guia fica "PENDENTE CONSULTA". Na
+        próxima execução o programa só consulta o recibo, sem reenviar.
+   b) ARQUIVO DE LOTE: gera o XML oficial (leiaute 2.00, validado no XSD) para
+      enviar em www.gnre.pe.gov.br > "Geração de GNRE em lote". Neste modo o PDF
+      sai como DEMONSTRATIVO, sem código de barras.
+   c) AMBOS: tenta o webservice. As guias que não chegarem ao portal vão para o
+      arquivo de lote.
+7. Gera um PDF por guia e salva na pasta que você escolher no campo
+   "Salvar os PDFs das guias em". Em branco, usa a subpasta "Guias" da pasta de
+   saída. Pelo site do portal, o PDF é o oficial baixado do portal. Nos outros
+   modos, o PDF é gerado no modelo GNRE em 3 vias. O nome do arquivo traz o
+   vencimento e depois a nota, por exemplo:
+       2026-10-15 - NF 1234 - DIFAL RJ.pdf
+   Para guias vencidas, o nome traz a nova data de pagamento.
+8. Gera o relatório Excel (Relatorio_Guias_AAAAMMDD_HHMMSS.xlsx) com estas abas:
+   - Guias: nº da nota, cliente, tipo de imposto, valor, vencimento, UF, receita,
+     multa, juros, total, situação, linha digitável, arquivo e chave.
+   - Resumo: totais por imposto e UF.
+   - Informativos.
+   - Ocorrências: erros e avisos.
+9. Guarda tudo no histórico (pasta "dados", arquivo guias.db). Guias já emitidas
+   não são emitidas de novo; para emitir outra vez, marque "Reemitir".
+
+INSTALAÇÃO
+----------
+Não precisa instalar. Copie GeradorGuias.exe para uma pasta, por exemplo
+C:\GeradorGuias, e execute. Na primeira execução são criados:
+  config.ini   configurações (também editáveis pela aba Configurações)
+  dados\       histórico (guias.db), cache das regras das UFs e da SELIC
+O Windows SmartScreen pode avisar que o programa não é assinado. Clique em
+"Mais informações" e depois em "Executar assim mesmo".
+
+TELA PRINCIPAL
+--------------
+  Esquerda:
+    IMPORTAR XML ............ escolha um ou vários XMLs (Ctrl/Shift para vários)
+    Importar em lote ........ escolha uma pasta inteira (inclui subpastas)
+    Limpar dados ............ limpa a lista da tela (o histórico de guias é mantido)
+    Data de pagamento ....... base do cálculo de multa e juros das guias vencidas
+  Centro: NF / Cliente / Tipo de imposto / UF / Valor / Vencimento / Multa + juros /
+          Total / Situação
+    - Linhas VENCIDAS em vermelho; dentro do prazo em preto; guia já emitida em
+      verde; linhas só de conferência (ST interna, SUFRAMA) em cinza.
+    - Clique no título de uma coluna para ordenar. Dê dois cliques numa linha para
+      ver os detalhes e as ocorrências daquela nota.
+  Direita:
+    GERAR GUIA PARA PAGAMENTO
+      Gera as linhas selecionadas, ou todas se nenhuma estiver selecionada.
+      Pergunta a pasta onde salvar os PDFs e, no modo padrão, abre o site do
+      Portal GNRE, emite a guia e salva o PDF oficial.
+    GERAR RELATÓRIO EXCEL
+      Informe a data inicial e a data final e escolha filtrar por vencimento,
+      emissão da NF ou geração da guia. O relatório junta o histórico com o que
+      está na tela.
+  ⚙ Configurações (canto superior direito):
+    - CNPJ da empresa, e-mail do portal, modo de emissão, certificado, prazos,
+      multa e juros.
+  "Mostrar detalhes" (rodapé): exibe o andamento e os erros e avisos dos XMLs.
+
+PRIMEIROS PASSOS
+----------------
+1. Abra ⚙ Configurações:
+   - informe o CNPJ da empresa;
+   - informe o e-mail do Portal GNRE;
+   - se for usar o webservice, informe também o certificado A1.
+2. Clique em IMPORTAR XML (ou em Importar em lote).
+3. Confira a lista, selecione as linhas e clique em GERAR GUIA PARA PAGAMENTO.
+4. Gere o relatório Excel do período desejado.
+
+LINHA DE COMANDO (para agendar no Agendador de Tarefas do Windows)
+------------------------------------------------------------------
+  GeradorGuias_cli.exe processar --xml "C:\XML\Saida" --saida "C:\Guias" --pdf "C:\Guias\PDF" --modo ambos --senha SENHA
+  GeradorGuias_cli.exe processar --xml "C:\XML\nf1.xml" "C:\XML\nf2.xml" --saida "C:\Guias" --modo portal
+  GeradorGuias_cli.exe relatorio --de 01/10/2026 --ate 31/10/2026 --saida "C:\Guias\outubro.xlsx"
+Opções do relatório: --campo vencimento|data_emissao|gerado_em|data_pagamento,
+--tipo DIFAL e --uf RJ.
+
+AJUSTES AVANÇADOS (config.ini)
+------------------------------
+[receitas]    códigos de receita GNRE por tipo; tipo de documento de origem padrão (10)
+[prazos]      dia de vencimento por apuração e ajuste para dia não útil
+[encargos]    multa ao dia, teto e juros (selic ou fixo)
+[encargos_uf] regra própria por UF, no formato  rj = 0.33;20;selic
+[webservice]  URLs, guias por lote, tempos de espera e de consulta
+[portal]      e-mail, navegador (edge/chrome), endereços das páginas do portal e
+              tempo máximo de espera.
+              driver = caminho de um msedgedriver.exe/chromedriver.exe, se a rede da
+              empresa bloquear o download automático do driver.
+[geral]       padrao_nome_arquivo, por exemplo "{vencimento} - NF {nf} - {tipo} {uf}".
+              Também aceita {receita} e {cliente}.
+              formato_data_arquivo: %Y-%m-%d (ordena certo) ou %d-%m-%Y
+
+LIMITES E CUIDADOS
+------------------
+- Modo site do portal: precisa do Edge ou do Chrome instalado e de acesso à
+  internet. Na primeira vez, o driver do navegador é baixado automaticamente.
+  Se o portal mudar as telas, este modo pode parar de funcionar. Nesse caso, use
+  o arquivo de lote gerado em Lotes_XML, enviando-o manualmente em
+  "Processar Lote".
+- O programa se baseia nos valores destacados no XML. Ele não refaz o cálculo
+  tributário, só confere e avisa quando há divergência.
+- Regras próprias de cada UF podem exigir campos que o programa não preenche
+  sozinho, como detalhamento, produto ou campos extras sem correspondência no
+  XML. Nesses casos aparece um aviso em Ocorrências.
+- SUFRAMA: não existe guia GNRE do remetente. O programa só sinaliza as notas
+  para conferência do PIN-e e do internamento.
+- DIFAL de Simples Nacional: a exigência varia conforme a UF e decisões
+  judiciais. Confirme com a contabilidade.
+- Multa e juros calculados pelo programa são estimativas. Vale o valor da guia
+  emitida pelo portal.
+- A senha do certificado só é gravada se você marcar "Lembrar senha". Mesmo assim
+  fica apenas ofuscada, não criptografada.
+
+CÓDIGO-FONTE
+------------
+A pasta codigo_fonte traz o projeto em Python.
+- Para gerar o .exe de novo: instale o Python 3.10+ e rode build_exe.bat.
+- O layout GNRE segue o Manual de Integração do Contribuinte, versão 2.00
+  (XSDs oficiais na pasta xsd).

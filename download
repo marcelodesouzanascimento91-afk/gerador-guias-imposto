@@ -1,0 +1,30 @@
+# Dados locais do usuário – NUNCA versionar
+config.ini
+dados/
+*.pfx
+*.p12
+*.pem
+*.key
+
+# Saídas geradas
+Guias/
+Lotes_XML/
+Relatorio_Guias_*.xlsx
+GNRE_Portal_*.pdf
+saida/
+
+# XMLs reais: mantenha fora do repositório (os exemplos fictícios ficam em exemplos/xmls)
+xmls_reais/
+*-procNFe.xml
+*-nfe.xml
+!exemplos/xmls/*.xml
+
+# Build / Python
+build/
+dist/
+*.spec
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
